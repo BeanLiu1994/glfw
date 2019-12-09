@@ -601,7 +601,6 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
         }
     }
 
-    int index = 0;
     if (_glfw.egl.KHR_create_context)
     {
         int mask = 0, flags = 0;
