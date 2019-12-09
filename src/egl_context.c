@@ -34,6 +34,13 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#define setAttrib(a, v) \
+{ \
+    assert(((size_t) index + 1) < sizeof(attribs) / sizeof(attribs[0])); \
+    attribs[index++] = a; \
+    attribs[index++] = v; \
+}
+
 
 // Return a description of the specified EGL error
 //
@@ -91,6 +98,33 @@ static GLFWbool chooseEGLConfig(const _GLFWctxconfig* ctxconfig,
                                 const _GLFWfbconfig* desired,
                                 EGLConfig* result)
 {
+
+#if defined(_GLFW_EGLHEADLESS)
+{
+    EGLint attribs[40];
+    int index = 0;
+        setAttrib(EGL_SURFACE_TYPE, EGL_PBUFFER_BIT);
+        setAttrib(EGL_BLUE_SIZE, 8);
+        setAttrib(EGL_GREEN_SIZE, 8);
+        setAttrib(EGL_RED_SIZE, 8);
+        setAttrib(EGL_DEPTH_SIZE, 8);
+        if (ctxconfig->client == GLFW_OPENGL_ES_API)
+        {
+            setAttrib(EGL_RENDERABLE_TYPE, EGL_OPENGL_ES_BIT);
+        }
+        else
+        {
+            setAttrib(EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT);
+        }
+        setAttrib(EGL_NONE, EGL_NONE);
+        
+        int num_configs;
+    if (!eglChooseConfig(_glfw.egl.display, attribs, result, 1, &num_configs) || num_configs == 0) {
+        return GLFW_FALSE;
+    }
+    return GLFW_TRUE;
+}
+#else
     EGLConfig* nativeConfigs;
     _GLFWfbconfig* usableConfigs;
     const _GLFWfbconfig* closest;
@@ -187,6 +221,7 @@ static GLFWbool chooseEGLConfig(const _GLFWctxconfig* ctxconfig,
     free(usableConfigs);
 
     return closest != NULL;
+#endif
 }
 
 static void makeContextCurrentEGL(_GLFWwindow* window)
@@ -240,13 +275,14 @@ static void swapIntervalEGL(int interval)
 
 static int extensionSupportedEGL(const char* extension)
 {
+#if !defined(_GLFW_EGLHEADLESS)
     const char* extensions = eglQueryString(_glfw.egl.display, EGL_EXTENSIONS);
     if (extensions)
     {
         if (_glfwStringInExtensionString(extension, extensions))
             return GLFW_TRUE;
     }
-
+#endif
     return GLFW_FALSE;
 }
 
@@ -362,6 +398,12 @@ GLFWbool _glfwInitEGL(void)
         _glfw_dlsym(_glfw.egl.handle, "eglDestroyContext");
     _glfw.egl.CreateWindowSurface = (PFN_eglCreateWindowSurface)
         _glfw_dlsym(_glfw.egl.handle, "eglCreateWindowSurface");
+    #if defined(_GLFW_EGLHEADLESS)
+    _glfw.egl.CreatePbufferSurface = (PFN_eglCreatePbufferSurface)
+        _glfw_dlsym(_glfw.egl.handle, "eglCreatePbufferSurface");
+    _glfw.egl.ChooseConfig = (PFN_eglChooseConfig)
+        _glfw_dlsym(_glfw.egl.handle, "eglChooseConfig");
+    #endif
     _glfw.egl.MakeCurrent = (PFN_eglMakeCurrent)
         _glfw_dlsym(_glfw.egl.handle, "eglMakeCurrent");
     _glfw.egl.SwapBuffers = (PFN_eglSwapBuffers)
@@ -384,6 +426,10 @@ GLFWbool _glfwInitEGL(void)
         !_glfw.egl.DestroySurface ||
         !_glfw.egl.DestroyContext ||
         !_glfw.egl.CreateWindowSurface ||
+    #if defined(_GLFW_EGLHEADLESS)
+        !_glfw.egl.CreatePbufferSurface ||
+        !_glfw.egl.ChooseConfig ||
+    #endif
         !_glfw.egl.MakeCurrent ||
         !_glfw.egl.SwapBuffers ||
         !_glfw.egl.SwapInterval ||
@@ -397,6 +443,9 @@ GLFWbool _glfwInitEGL(void)
         return GLFW_FALSE;
     }
 
+    #if defined(_GLFW_EGLHEADLESS)
+    _glfw.egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    #else
     extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
     if (extensions && eglGetError() == EGL_SUCCESS)
         _glfw.egl.EXT_client_extensions = GLFW_TRUE;
@@ -441,7 +490,7 @@ GLFWbool _glfwInitEGL(void)
         _glfw.egl.display = eglGetDisplay(_glfwPlatformGetEGLNativeDisplay());
 
     free(attribs);
-
+    #endif
     if (_glfw.egl.display == EGL_NO_DISPLAY)
     {
         _glfwInputError(GLFW_API_UNAVAILABLE,
@@ -493,13 +542,6 @@ void _glfwTerminateEGL(void)
     }
 }
 
-#define setAttrib(a, v) \
-{ \
-    assert(((size_t) index + 1) < sizeof(attribs) / sizeof(attribs[0])); \
-    attribs[index++] = a; \
-    attribs[index++] = v; \
-}
-
 // Create the OpenGL or OpenGL ES context
 //
 GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
@@ -549,6 +591,7 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
         }
     }
 
+    int index = 0;
     if (_glfw.egl.KHR_create_context)
     {
         int mask = 0, flags = 0;
@@ -621,10 +664,21 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
         }
     }
 
+    #if defined(_GLFW_EGLHEADLESS)
+        setAttrib(EGL_CONTEXT_MAJOR_VERSION, ctxconfig->major);
+        setAttrib(EGL_CONTEXT_MINOR_VERSION, ctxconfig->minor);
+        setAttrib(EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT);
+    #endif
+
     setAttrib(EGL_NONE, EGL_NONE);
 
+    #if defined(_GLFW_EGLHEADLESS)
+    window->context.egl.handle = eglCreateContext(_glfw.egl.display,
+                                                  config, share, NULL);
+    #else
     window->context.egl.handle = eglCreateContext(_glfw.egl.display,
                                                   config, share, attribs);
+    #endif
 
     if (window->context.egl.handle == EGL_NO_CONTEXT)
     {
@@ -634,6 +688,18 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
         return GLFW_FALSE;
     }
 
+    #if defined(_GLFW_EGLHEADLESS)
+    // Set up attributes for surface creation
+    {
+        int width, height;
+        _glfwPlatformGetFramebufferSize(window, &width, &height);
+        int index = 0;
+        setAttrib(EGL_WIDTH, width);
+        setAttrib(EGL_HEIGHT, height);
+        setAttrib(EGL_NONE, EGL_NONE);
+    }
+    window->context.egl.surface = eglCreatePbufferSurface(_glfw.egl.display, config, attribs);
+    #else
     // Set up attributes for surface creation
     index = 0;
 
@@ -661,7 +727,6 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
         window->context.egl.surface =
             eglCreateWindowSurface(_glfw.egl.display, config, native, attribs);
     }
-
     if (window->context.egl.surface == EGL_NO_SURFACE)
     {
         _glfwInputError(GLFW_PLATFORM_ERROR,
@@ -715,7 +780,11 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
 #elif defined(_GLFW_WIN32)
 #elif defined(_GLFW_COCOA)
 #else
+#if defined(_GLFW_EGLHEADLESS)
+            "libOpenGL.so.0",
+#else
             "libGL.so.1",
+#endif
 #endif
             NULL
         };
