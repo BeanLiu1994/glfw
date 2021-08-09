@@ -25,6 +25,7 @@
 //
 //========================================================================
 
+#pragma once
 #if defined(_GLFW_WIN32)
  #define EGLAPIENTRY __stdcall
 #else
@@ -174,7 +175,7 @@ typedef EGLSurface (EGLAPIENTRY * PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)(EGLD
 
 // EGL-specific per-context data
 //
-typedef struct _GLFWcontextEGL
+typedef struct 
 {
    EGLConfig        config;
    EGLContext       handle;
@@ -186,7 +187,7 @@ typedef struct _GLFWcontextEGL
 
 // EGL-specific global data
 //
-typedef struct _GLFWlibraryEGL
+typedef struct 
 {
     EGLenum         platform;
     EGLDisplay      display;
@@ -224,7 +225,6 @@ typedef struct _GLFWlibraryEGL
 #if defined(_GLFW_EGLHEADLESS)
     PFN_eglCreatePbufferSurface CreatePbufferSurface;
     PFN_eglQueryDevicesEXT QueryDevicesEXT;
-    PFN_eglGetPlatformDisplayEXT GetPlatformDisplayEXT;
 #endif
     PFN_eglMakeCurrent          MakeCurrent;
     PFN_eglSwapBuffers          SwapBuffers;

@@ -736,6 +736,8 @@ GLFWbool _glfwCreateContextEGL(_GLFWwindow* window,
         window->context.egl.surface =
             eglCreateWindowSurface(_glfw.egl.display, config, native, attribs);
     }
+    #endif 
+    
     if (window->context.egl.surface == EGL_NO_SURFACE)
     {
         _glfwInputError(GLFW_PLATFORM_ERROR,
