@@ -128,7 +128,8 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
             return GLFW_FALSE;
         }
     #elif defined(_GLFW_EGLHEADLESS)
-        if (ctxconfig->source == GLFW_NATIVE_CONTEXT_API)
+        if (ctxconfig->source == GLFW_NATIVE_CONTEXT_API || 
+            ctxconfig->source == GLFW_EGL_CONTEXT_API)
         {
             if (!_glfwInitEGL())
                 return GLFW_FALSE;
