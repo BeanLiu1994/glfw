@@ -1,3 +1,7 @@
+# Modification:
+
+try merging https://github.com/christopher-hesse/glfw:master into https://github.com/glfw/glfw:201400b974b63eb7f23eb7d8563589df9c699d7c
+
 # GLFW
 
 [![Build status](https://github.com/glfw/glfw/actions/workflows/build.yml/badge.svg)](https://github.com/glfw/glfw/actions)
